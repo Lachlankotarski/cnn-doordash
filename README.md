@@ -27,4 +27,7 @@ A Convolutional Neural Network that predicts the price of the food from the feat
 * Weights:
 * Inference code:
 
-PyTorch
+---
+## Installation
+
+---
