@@ -119,8 +119,7 @@ it is.
 
 
 - **Input size 224×224** matches the standard `torchvision` pretrained
-backbones, so we can swap in ResNet/EfficientNet later with no other
-changes.
+backbones.
 - **ImageNet normalization** for the same reason.
 - **Augmentation** (random crop / flip / mild color jitter) is intentionally
 conservative — extreme distortion would change the visual cues that
@@ -244,11 +243,6 @@ to infinity.
 but we deep-copy the model state every time val MAE improves and restore
 the best snapshot before evaluating on the test set.
 
-### Defensive checks
-
-`run_epoch` raises `RuntimeError` immediately if the model produces a
-non-finite prediction. This makes silent NaN propagation impossible and
-catches numerical issues (e.g. MPS quirks) on the very first bad batch.
 
 ### Batch size, epochs, and runtime
 
@@ -265,10 +259,6 @@ catches numerical issues (e.g. MPS quirks) on the very first bad batch.
 | download workers   | 16      | `--download-workers` |
 | seed               | 42      | `--seed`             |
 
-
-On an M-series Mac (`mps` device), one epoch over the ~1,400 training
-images takes ~40 seconds, so the full 15-epoch run finishes in roughly
-**10 minutes**. On CPU it's roughly 4× slower; on a CUDA GPU, 5× faster.
 
 ---
 
@@ -297,28 +287,6 @@ yet at 3 epochs.
 - CNN beats the naive baseline by **$1.29 / item** on held-out test data.
 - `runs/default/training_curves.png` plots both Huber loss and MAE for both
 splits.
-
-### Why no confusion matrix
-
-Confusion matrices are for classification. This is a continuous regression
-problem (price in dollars), so we use:
-
-- **Predicted-vs-true scatter plot** with the `y = x` line (in `cnn.ipynb`,
-test-set evaluation cell).
-- **MAE in dollars** as the headline metric.
-- **Naive baseline** for sanity.
-
-### Visualization (planned)
-
-- Saliency maps and Grad-CAM overlays to see *where* on the plate the
-model looks when predicting price. Implementation hook: easy to add via
-`torch.autograd.grad` on the input tensor against the model output, or
-via the `pytorch-grad-cam` package targeting the final conv block
-(`model.features[4]`).
-
----
-
-## Model deployment details
 
 ### Weights
 
@@ -359,21 +327,6 @@ def predict_price(image_path: str) -> float:
 print(predict_price("images/some_dish.jpg"))
 ```
 
----
-
-## Roadmap
-
-- **Pretrained backbone.** Swap `PriceCNN` for `torchvision.models.resnet18(weights="DEFAULT")`
-with `model.fc = nn.Linear(512, 1)`. Should cut MAE substantially with no
-other pipeline changes — input size, normalization, and
-Dataset/DataLoader API are already compatible.
-- **Log-target training.** Predict `log1p(price)` and exponentiate at
-inference. Better-behaved gradients on the long tail of expensive items.
-- **Per-restaurant features.** Concatenate restaurant metadata
-(`market`, `restaurantPriceRange`, `restaurantAverageRating`) into the
-MLP head as a multi-modal model.
-- **Grad-CAM cell** in the notebook so we can see what the CNN actually
-pays attention to.
 
 ---
 
